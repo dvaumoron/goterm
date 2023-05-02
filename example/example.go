@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/google/goterm/term"
+	"github.com/dvaumoron/goterm/term"
 )
 
 // Constants for IO and greeting.

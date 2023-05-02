@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"strings"
 )
 
 type stringer interface {
@@ -58,6 +59,7 @@ func ColorDisable() {
 // Terminal Color and modifier codes
 const (
 	CSI       = "\033["
+	endCSI    = 'm'
 	FgBlack   = "30"
 	FgRed     = "31"
 	FgGreen   = "32"
@@ -85,6 +87,8 @@ const (
 	Bld       = "1"
 	NoMode    = "0"
 )
+
+const baseLen = 2 * (len(CSI) + 1)
 
 // Standard colors
 // Foreground
@@ -172,89 +176,21 @@ type Bold string
 // Italic implements the Stringer interface to print string foreground in Italic color.
 type Italic string
 
-// colType takes all the base color types and generates proper modifiers.
-func colType(col stringer) string {
-	nMode := FgDefault
-	var mode, res string
-	switch c := col.(type) {
-	case Black:
-		mode = FgBlack
-		res = string(c)
-	case Red:
-		mode = FgRed
-		res = string(c)
-	case Green:
-		mode = FgGreen
-		res = string(c)
-	case Yellow:
-		mode = FgYellow
-		res = string(c)
-	case Blue:
-		mode = FgBlue
-		res = string(c)
-	case Magenta:
-		mode = FgMagenta
-		res = string(c)
-	case Cyan:
-		mode = FgCyan
-		res = string(c)
-	case White:
-		mode = FgWhite
-		res = string(c)
-	case BBlack:
-		mode = BgBlack
-		res = string(c)
-	case BRed:
-		mode = BgRed
-		nMode = BgDefault
-		res = string(c)
-	case BGreen:
-		mode = BgGreen
-		nMode = BgDefault
-		res = string(c)
-	case BYellow:
-		mode = BgYellow
-		nMode = BgDefault
-		res = string(c)
-	case BBlue:
-		mode = BgBlue
-		nMode = BgDefault
-		res = string(c)
-	case BMagenta:
-		mode = BgMagenta
-		nMode = BgDefault
-		res = string(c)
-	case BCyan:
-		mode = BgCyan
-		nMode = BgDefault
-		res = string(c)
-	case BWhite:
-		mode = BgWhite
-		nMode = BgDefault
-		res = string(c)
-	case Blinking:
-		mode = Blink
-		nMode = NoMode
-		res = string(c)
-	case Italic:
-		mode = Ital
-		nMode = NoMode
-		res = string(c)
-	case Underline:
-		mode = Underln
-		nMode = NoMode
-		res = string(c)
-	case Bold:
-		nMode = NoMode
-		mode = Bld
-		res = string(c)
-	default:
-		return "unsupported type"
-	}
+// colConcat add beginning and ending color mode modifer
+func colConcat(mode string, s string, nMode string) string {
 	if !colorEnable {
-		return res
+		return s
 	}
-	return CSI + mode + "m" + res + CSI + nMode + "m"
+	var buffer strings.Builder
+	buffer.Grow(baseLen + len(mode) + len(s) + len(nMode))
+	buffer.WriteString(CSI)
+	buffer.WriteString(mode)
+	buffer.WriteByte(endCSI)
+	buffer.WriteString(s)
+	buffer.WriteString(CSI)
+	buffer.WriteString(nMode)
+	buffer.WriteByte(endCSI)
+	return buffer.String()
 }
 
 // Stringers for all the base colors , just fill it in with something and print it
@@ -262,186 +198,186 @@ func colType(col stringer) string {
 
 // String implements the Stringer interface for type Green.
 func (c Green) String() string {
-	return colType(c)
+	return colConcat(FgGreen, string(c), FgDefault)
 }
 
 // Greenf returns a Green formatted string.
-func Greenf(format string, a ...interface{}) string {
-	return colType(Green(fmt.Sprintf(format, a...)))
+func Greenf(format string, a ...any) string {
+	return Green(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type Blue.
 func (c Blue) String() string {
-	return colType(c)
+	return colConcat(FgBlue, string(c), FgDefault)
 }
 
 // Bluef returns a Blue formatted string.
-func Bluef(format string, a ...interface{}) string {
-	return colType(Blue(fmt.Sprintf(format, a...)))
+func Bluef(format string, a ...any) string {
+	return Blue(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type Red.
 func (c Red) String() string {
-	return colType(c)
+	return colConcat(FgRed, string(c), FgDefault)
 }
 
 // Redf returns a Red formatted string.
-func Redf(format string, a ...interface{}) string {
-	return colType(Red(fmt.Sprintf(format, a...)))
+func Redf(format string, a ...any) string {
+	return Red(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type Yellow.
 func (c Yellow) String() string {
-	return colType(c)
+	return colConcat(FgYellow, string(c), FgDefault)
 }
 
 // Yellowf returns a Yellow formatted string.
-func Yellowf(format string, a ...interface{}) string {
-	return colType(Yellow(fmt.Sprintf(format, a...)))
+func Yellowf(format string, a ...any) string {
+	return Yellow(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type Magenta.
 func (c Magenta) String() string {
-	return colType(c)
+	return colConcat(FgMagenta, string(c), FgDefault)
 }
 
 // Magentaf returns a Magenta formatted string.
-func Magentaf(format string, a ...interface{}) string {
-	return colType(Magenta(fmt.Sprintf(format, a...)))
+func Magentaf(format string, a ...any) string {
+	return Magenta(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type White.
 func (c White) String() string {
-	return colType(c)
+	return colConcat(FgWhite, string(c), FgDefault)
 }
 
 // Whitef returns a White formatted string.
-func Whitef(format string, a ...interface{}) string {
-	return colType(White(fmt.Sprintf(format, a...)))
+func Whitef(format string, a ...any) string {
+	return White(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type Black.
 func (c Black) String() string {
-	return colType(c)
+	return colConcat(FgBlack, string(c), FgDefault)
 }
 
 // Blackf returns a Black formatted string.
-func Blackf(format string, a ...interface{}) string {
-	return colType(Black(fmt.Sprintf(format, a...)))
+func Blackf(format string, a ...any) string {
+	return Black(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type Cyan.
 func (c Cyan) String() string {
-	return colType(c)
+	return colConcat(FgCyan, string(c), FgDefault)
 }
 
 // Cyanf returns a Cyan formatted string.
-func Cyanf(format string, a ...interface{}) string {
-	return colType(Cyan(fmt.Sprintf(format, a...)))
+func Cyanf(format string, a ...any) string {
+	return Cyan(fmt.Sprintf(format, a...)).String()
 }
 
 // Background
 
 // String implements the Stringer interface for type BGreen.
 func (c BGreen) String() string {
-	return colType(c)
+	return colConcat(BgGreen, string(c), BgDefault)
 }
 
 // BGreenf returns a BGreen formatted string.
-func BGreenf(format string, a ...interface{}) string {
-	return colType(BGreen(fmt.Sprintf(format, a...)))
+func BGreenf(format string, a ...any) string {
+	return BGreen(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type BBlue.
 func (c BBlue) String() string {
-	return colType(c)
+	return colConcat(BgBlue, string(c), BgDefault)
 }
 
 // BBluef returns a BBlue formatted string.
-func BBluef(format string, a ...interface{}) string {
-	return colType(BBlue(fmt.Sprintf(format, a...)))
+func BBluef(format string, a ...any) string {
+	return BBlue(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type BRed.
 func (c BRed) String() string {
-	return colType(c)
+	return colConcat(BgRed, string(c), BgDefault)
 }
 
 // BRedf returns a BRed formatted string.
-func BRedf(format string, a ...interface{}) string {
-	return colType(BRed(fmt.Sprintf(format, a...)))
+func BRedf(format string, a ...any) string {
+	return BRed(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type BYellow.
 func (c BYellow) String() string {
-	return colType(c)
+	return colConcat(BgYellow, string(c), BgDefault)
 }
 
 // BYellowf returns a BYellow formatted string.
-func BYellowf(format string, a ...interface{}) string {
-	return colType(BYellow(fmt.Sprintf(format, a...)))
+func BYellowf(format string, a ...any) string {
+	return BYellow(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type BMagenta.
 func (c BMagenta) String() string {
-	return colType(c)
+	return colConcat(BgMagenta, string(c), BgDefault)
 }
 
 // BMagentaf returns a BMagenta formatted string.
-func BMagentaf(format string, a ...interface{}) string {
-	return colType(BMagenta(fmt.Sprintf(format, a...)))
+func BMagentaf(format string, a ...any) string {
+	return BMagenta(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type BWhite.
 func (c BWhite) String() string {
-	return colType(c)
+	return colConcat(BgWhite, string(c), BgDefault)
 }
 
 // BWhitef returns a BWhite formatted string.
-func BWhitef(format string, a ...interface{}) string {
-	return colType(BWhite(fmt.Sprintf(format, a...)))
+func BWhitef(format string, a ...any) string {
+	return BWhite(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type BBlack.
 func (c BBlack) String() string {
-	return colType(c)
+	return colConcat(BgBlack, string(c), BgDefault)
 }
 
 // BBlackf returns a BBlack formatted string.
-func BBlackf(format string, a ...interface{}) string {
-	return colType(BBlack(fmt.Sprintf(format, a...)))
+func BBlackf(format string, a ...any) string {
+	return BBlack(fmt.Sprintf(format, a...)).String()
 }
 
 // String implements the Stringer interface for type BCyan.
 func (c BCyan) String() string {
-	return colType(c)
+	return colConcat(BgCyan, string(c), BgDefault)
 }
 
 // BCyanf returns a BCyan formatted string.
-func BCyanf(format string, a ...interface{}) string {
-	return colType(BCyan(fmt.Sprintf(format, a...)))
+func BCyanf(format string, a ...any) string {
+	return BCyan(fmt.Sprintf(format, a...)).String()
 }
 
 // Modifier codes
 
 // String implements the Stringer interface for type Blinking.
 func (c Blinking) String() string {
-	return colType(c)
+	return colConcat(Blink, string(c), NoMode)
 }
 
 // String implements the Stringer interface for type Underline.
 func (c Underline) String() string {
-	return colType(c)
+	return colConcat(Underln, string(c), NoMode)
 }
 
 // String implements the Stringer interface for type Bold.
 func (c Bold) String() string {
-	return colType(c)
+	return colConcat(Bld, string(c), NoMode)
 }
 
 // String implements the Stringer interface for type Italic.
 func (c Italic) String() string {
-	return colType(c)
+	return colConcat(Ital, string(c), NoMode)
 }
 
 // NewColor gives a type Color back with specified fg/bg colors set that can
@@ -499,7 +435,6 @@ func (c Color) String() string {
 					default:
 						// Not a term mod code.
 						i = s
-						break
 					}
 				}
 			}
