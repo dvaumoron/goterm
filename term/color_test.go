@@ -262,19 +262,19 @@ func TestColorRGB(t *testing.T) {
 		for ; red <= 254; red++ {
 			col := NewColorRGB("#", red, green, blue)
 			if !colorEnable {
-				if "#" != col.String() {
+				if col.String() != "#" {
 					t.Errorf("ColorDisable failed got: %q want: #", col.String())
 				}
 				continue
 			}
 			rstr = col.String()
 		}
-		rstr = "\n"
+		rstr += "\n"
 		// Green
 		for ; green <= 254; green++ {
 			col := NewColorRGB("#", red, green, blue)
 			if !colorEnable {
-				if "#" != col.String() {
+				if col.String() != "#" {
 					t.Errorf("ColorDisable failed got: %q want: #", col.String())
 				}
 				continue
@@ -287,7 +287,7 @@ func TestColorRGB(t *testing.T) {
 		for ; blue <= 254; blue++ {
 			col := NewColorRGB("#", red, green, blue)
 			if !colorEnable {
-				if "#" != col.String() {
+				if col.String() != "#" {
 					t.Errorf("ColorDisable failed got: %q want: #", col.String())
 				}
 				continue
@@ -299,7 +299,7 @@ func TestColorRGB(t *testing.T) {
 		for grey := uint8(0); grey <= 254; grey++ {
 			col := NewColorRGB("#", grey, grey, grey)
 			if !colorEnable {
-				if "#" != col.String() {
+				if col.String() != "#" {
 					t.Errorf("ColorDisable failed got: %q want: #", col.String())
 				}
 				continue
