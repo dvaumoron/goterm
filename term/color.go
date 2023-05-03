@@ -39,6 +39,8 @@ import (
 	"strings"
 )
 
+type empty = struct{}
+
 type stringer interface {
 	String() string
 }
@@ -58,8 +60,10 @@ func ColorDisable() {
 
 // Terminal Color and modifier codes
 const (
-	CSI       = "\033["
-	endCSI    = 'm'
+	CSI    = "\033["
+	SepCSI = ";"
+	EndCSI = "m"
+
 	FgBlack   = "30"
 	FgRed     = "31"
 	FgGreen   = "32"
@@ -88,7 +92,27 @@ const (
 	NoMode    = "0"
 )
 
-const baseLen = 2 * (len(CSI) + 1)
+const (
+	sepCSI = ';'
+	endCSI = 'm'
+
+	csiLen  = len(CSI)
+	baseLen = 2 * (csiLen + 1)
+
+	eraser       = CSI + FgDefault + SepCSI + BgDefault + EndCSI
+	colorBaseLen = csiLen + 2 + len(eraser)
+
+	mod256          = ";5;"
+	start256        = CSI + F256 + mod256
+	sep256          = SepCSI + Bg256 + mod256
+	eraser256       = CSI + FgDefault + mod256 + BgDefault + mod256 + EndCSI
+	eraser256Len    = len(eraser256)
+	color256BaseLen = len(start256) + len(sep256) + 1 + eraser256Len
+
+	modRGB          = ";2;"
+	startRGB        = CSI + F256 + modRGB
+	colorRGBBaseLen = len(startRGB) + 3 + eraser256Len
+)
 
 // Standard colors
 // Foreground
@@ -496,12 +520,25 @@ func NewColor(str string, fg string, bg string) (Color, error) {
 			return Color(""), err
 		}
 		if ibg < 40 && ibg > 47 {
-			return Color(""), errors.New("fg: " + fg + "not a valid color 40-47")
+			return Color(""), errors.New("Bg: " + bg + "not a valid color 40-47")
 		}
 	} else {
 		bg = BgDefault
 	}
-	return Color(CSI + fg + ";" + bg + "m" + str + CSI + FgDefault + ";" + BgDefault + "m"), nil
+	return Color(createColor(str, fg, bg)), nil
+}
+
+func createColor(str string, fg string, bg string) string {
+	var buffer strings.Builder
+	buffer.Grow(colorBaseLen + len(fg) + len(bg) + len(str))
+	buffer.WriteString(CSI)
+	buffer.WriteString(fg)
+	buffer.WriteByte(sepCSI)
+	buffer.WriteString(bg)
+	buffer.WriteByte(endCSI)
+	buffer.WriteString(str)
+	buffer.WriteString(eraser)
+	return buffer.String()
 }
 
 // String the stringer interface for all base color types.
@@ -561,9 +598,16 @@ func NewColor256(str string, fg string, bg string) (Color, error) {
 			return Color(""), errors.New("bg: " + bg + " not a valid color 0-256")
 		}
 	}
-	tstr := CSI + F256 + ";5;" + fg + ";" + Bg256 + ";5;" + bg + "m"
-	tstr += str
-	return Color(tstr + CSI + FgDefault + ";5;" + BgDefault + ";5;" + "m"), nil
+	var buffer strings.Builder
+	buffer.Grow(color256BaseLen + len(bg) + len(fg) + len(str))
+	buffer.WriteString(start256)
+	buffer.WriteString(fg)
+	buffer.WriteString(sep256)
+	buffer.WriteString(bg)
+	buffer.WriteByte(endCSI)
+	buffer.WriteString(str)
+	buffer.WriteString(eraser256)
+	return Color(buffer.String()), nil
 }
 
 // NewColorRGB takes R G B and returns a ColorRGB type that can be printed by anything using the Stringer iface.
@@ -572,9 +616,18 @@ func NewColorRGB(str string, red uint8, green uint8, blue uint8) Color {
 	ired := strconv.Itoa(int(red))
 	igreen := strconv.Itoa(int(green))
 	iblue := strconv.Itoa(int(blue))
-	tstr := CSI + F256 + ";2;" + ired + ";" + igreen + ";" + iblue + "m"
-	tstr += str
-	return Color(tstr + CSI + FgDefault + ";5;" + BgDefault + ";5;" + "m")
+	var buffer strings.Builder
+	buffer.Grow(colorRGBBaseLen + len(ired) + len(igreen) + len(iblue) + len(str))
+	buffer.WriteString(startRGB)
+	buffer.WriteString(ired)
+	buffer.WriteByte(sepCSI)
+	buffer.WriteString(igreen)
+	buffer.WriteByte(sepCSI)
+	buffer.WriteString(iblue)
+	buffer.WriteByte(endCSI)
+	buffer.WriteString(str)
+	buffer.WriteString(eraser256)
+	return Color(buffer.String())
 }
 
 // String is a random color stringer.
@@ -584,10 +637,7 @@ func (c ColorRandom) String() string {
 	}
 	ifg := rand.Int()%8 + 30
 	ibg := rand.Int()%8 + 40
-	res := CSI + strconv.Itoa(ifg) + ";" + strconv.Itoa(ibg) + "m"
-	res += string(c)
-	res += CSI + strconv.Itoa(ifg) + ";" + strconv.Itoa(ibg) + "m"
-	return res
+	return createColor(string(c), strconv.Itoa(ifg), strconv.Itoa(ibg))
 }
 
 // String gives a random fg color everytime it's printed.
@@ -596,10 +646,7 @@ func (c Random) String() string {
 		return string(c)
 	}
 	ifg := int(rand.Int()%8 + 30)
-	res := CSI + strconv.Itoa(ifg) + "m"
-	res += string(c) + strconv.Itoa(int(ifg))
-	res += CSI + FgDefault + "m"
-	return res
+	return colConcat(strconv.Itoa(ifg), string(c), FgDefault)
 }
 
 // String gives a random bg color everytime it's printed.
@@ -608,17 +655,16 @@ func (c BRandom) String() string {
 		return string(c)
 	}
 	ibg := rand.Int()%8 + 40
-	res := CSI + strconv.Itoa(ibg) + "m"
-	res += string(c) + strconv.Itoa(ibg)
-	res += CSI + BgDefault + "m"
-	return res
+	return colConcat(strconv.Itoa(ibg), string(c), BgDefault)
 }
 
 // NewCombo Takes a combination of modes and return a string with them all combined.
 func NewCombo(s string, mods ...string) Color {
 	var col, bcol, mod bool
-	modstr := CSI
-	tracking := make(map[string]bool)
+	var buffer strings.Builder
+	buffer.WriteString(CSI)
+	first := true
+	tracking := make(map[string]empty)
 	for _, m := range mods {
 		switch m {
 		case FgBlack, FgRed, FgGreen, FgYellow, FgBlue, FgMagenta, FgCyan, FgWhite:
@@ -632,37 +678,41 @@ func NewCombo(s string, mods ...string) Color {
 			}
 			bcol = true
 		case Bld, Faint, Ital, Underln, Blink:
-			if tracking[m] {
+			if _, present := tracking[m]; present {
 				continue
 			}
-			tracking[m] = true
+			tracking[m] = empty{}
 			mod = true
 		default:
 			continue
 		}
-		modstr += m + ";"
-	}
-	end := CSI
-	if col {
-		end += FgDefault
-	}
-	if bcol {
-		if col {
-			end += ";"
+		if first {
+			first = false
+		} else {
+			buffer.WriteByte(sepCSI)
 		}
-		end += BgDefault
+		buffer.WriteString(m)
+	}
+	buffer.WriteByte(endCSI)
+	buffer.WriteString(s)
+	buffer.WriteString(CSI)
+	if col {
+		buffer.WriteString(FgDefault)
+		if bcol {
+			buffer.WriteByte(sepCSI)
+			buffer.WriteString(BgDefault)
+		}
+	} else if bcol {
+		buffer.WriteString(BgDefault)
 	}
 	if mod {
 		if col || bcol {
-			end += ";"
+			buffer.WriteByte(sepCSI)
 		}
-		end += NoMode
+		buffer.WriteString(NoMode)
 	}
-	end += "m"
-	modstr = modstr[:len(modstr)-1] + "m"
-	modstr += s
-	modstr += end
-	return Color(modstr)
+	buffer.WriteByte(endCSI)
+	return Color(buffer.String())
 }
 
 // TestTerm tries out most of the functions in this package and return
